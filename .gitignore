@@ -1,0 +1,24 @@
+# 过大文件
+dic/
+JMdict/
+JMdict.xml
+
+# 环境文件
+.env
+*.env
+
+# JSON 文件
+*.json
+
+# Python 缓存
+__pycache__/
+*.py[cod]
+
+# 虚拟环境
+env/
+venv/
+
+# 构建产物
+build/
+dist/
+*.egg-info/
