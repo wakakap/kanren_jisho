@@ -14,6 +14,7 @@ sqliteAssetHelper = "2.0.1"
 wanakana = "1.1.1"
 opencc4j = "1.13.0"
 kotlinxCoroutines = "1.8.0"
+gson = "2.10.1"
 
 [libraries]
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
@@ -37,6 +38,7 @@ wanakana-android = { group = "dev.esnault.wanakana", name = "wanakana-android", 
 opencc4j = { group = "com.github.houbb", name = "opencc4j", version.ref = "opencc4j" }
 kotlinx-coroutines-core = { group = "org.jetbrains.kotlinx", name = "kotlinx-coroutines-core", version.ref = "kotlinxCoroutines" }
 kotlinx-coroutines-android = { group = "org.jetbrains.kotlinx", name = "kotlinx-coroutines-android", version.ref = "kotlinxCoroutines" }
+gson = { group = "com.google.code.gson", name = "gson", version.ref = "gson" }
 
 [bundles]
 wanakana = ["wanakana-core", "wanakana-android"]

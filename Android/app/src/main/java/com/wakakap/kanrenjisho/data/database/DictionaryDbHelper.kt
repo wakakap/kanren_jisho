@@ -1,170 +1,88 @@
 package com.wakakap.kanrenjisho.data.database
 
 import android.content.Context
+import android.database.Cursor
 import android.database.sqlite.SQLiteDatabase
 import com.readystatesoftware.sqliteasset.SQLiteAssetHelper
 import com.wakakap.kanrenjisho.data.model.DictionaryEntry
-import com.wakakap.kanrenjisho.data.model.Example
-import com.wakakap.kanrenjisho.data.model.Sense
 
 class DictionaryDbHelper(context: Context) : SQLiteAssetHelper(context, DATABASE_NAME, null, DATABASE_VERSION) {
 
     companion object {
-        private const val DATABASE_NAME = "JMdict_detailed.db"
+        // 【修改】: 更新数据库文件名
+        private const val DATABASE_NAME = "JMdict_new.db"
         private const val DATABASE_VERSION = 1
 
-        // --- 表名常量 ---
+        // 【修改】: 使用新的表和列名常量
         private const val TABLE_ENTRIES = "entries"
-        private const val TABLE_FORMS = "forms"
-        private const val TABLE_SENSES = "senses"
-        private const val TABLE_EXAMPLES = "examples"
-
-        // --- 列名常量 ---
-        // 'entries' table
-        private const val COL_IDSEQ = "idseq" // 【新增】'entries' 表的主键
-
-        // 'forms' table
-        private const val COL_ENTRY_IDSEQ = "entry_idseq" // 'forms' 和 'senses' 表的外键
-        private const val COL_TEXT = "text"
-        private const val COL_TYPE = "type"
-        private const val COL_PRIORITIES = "priorities" // 【新增】'forms' 表的常用度标签列
-
-        // 'senses' table
-        private const val COL_SENSE_PK = "id"
-        private const val COL_POS = "pos"
-        private const val COL_GLOSS = "gloss"
-        private const val COL_INFO = "info"
-
-        // 'examples' table
-        private const val COL_SENSE_ID = "sense_id"
-        private const val COL_JPN_SENTENCE = "jpn_sentence"
-        private const val COL_ENG_SENTENCE = "eng_sentence"
-
-
-        // 常用度标签计分表
-        private val priorityMap = mapOf(
-            // 核心高频词
-            "ichi1" to 150, "news1" to 140, "spec1" to 130, "gai1" to 120,
-            "ichi2" to 115, "news2" to 110, "spec2" to 105, "gai2" to 100,
-
-            // JLPT 等级 (对学习者非常重要)
-            "jlpt-n5" to 90,
-            "jlpt-n4" to 80,
-            "jlpt-n3" to 70,
-            "jlpt-n2" to 60,
-            "jlpt-n1" to 50
-        )
+        private const val COL_ID = "id"
+        private const val COL_IS_COMMON = "is_common"
+        private const val COL_MAIN_KANJI = "main_kanji"
+        private const val COL_MAIN_KANA = "main_kana"
+        private const val COL_ALL_KANJI_FORMS = "all_kanji_forms"
+        private const val COL_ALL_KANA_FORMS = "all_kana_forms"
+        private const val COL_ALL_SENSES = "all_senses"
     }
 
     fun search(query: String, searchType: SearchType): List<DictionaryEntry> {
         val db: SQLiteDatabase = readableDatabase
-        val entryIds = findEntryIds(db, query, searchType)
-        return entryIds.mapNotNull { buildEntryFromIdseq(db, it) }
-    }
+        val entries = mutableListOf<DictionaryEntry>()
 
-    fun getEntriesByIds(ids: List<Long>): List<DictionaryEntry> {
-        if (ids.isEmpty()) return emptyList()
-        val db: SQLiteDatabase = readableDatabase
-        // 直接使用id列表构建entry对象，不再需要额外查询
-        val entries = ids.mapNotNull { buildEntryFromIdseq(db, it) }
-        // 保持传入ID的顺序
-        return entries.sortedBy { ids.indexOf(it.idseq) }
-    }
-
-    private fun buildEntryFromIdseq(db: SQLiteDatabase, idseq: Long): DictionaryEntry? {
-        val (kanjiForms, readingForms, maxPriority) = getFormsAndPriorityForEntry(db, idseq)
-        val senses = getSensesForEntry(db, idseq)
-
-        if (kanjiForms.isEmpty() && readingForms.isEmpty()) return null
-
-        return DictionaryEntry(
-            idseq = idseq,
-            kanjiForms = kanjiForms,
-            readingForms = readingForms,
-            senses = senses,
-            priority = maxPriority
-        )
-    }
-
-    private fun findEntryIds(db: SQLiteDatabase, query: String, searchType: SearchType): List<Long> {
-        val ids = mutableListOf<Long>()
+        // 新的查询逻辑更简单，直接在主表上进行
+        val selection = "$COL_MAIN_KANJI LIKE ? OR $COL_MAIN_KANA LIKE ?"
         val selectionArg = when (searchType) {
             SearchType.EXACT -> query
             SearchType.PREFIX -> "$query%"
         }
+        val selectionArgs = arrayOf(selectionArg, selectionArg)
 
-        // 查询语句现在完全使用常量
-        val sql = "SELECT DISTINCT $COL_ENTRY_IDSEQ FROM $TABLE_FORMS WHERE $COL_TEXT LIKE ? LIMIT 50"
-        db.rawQuery(sql, arrayOf(selectionArg)).use { cursor ->
-            while (cursor.moveToNext()) {
-                ids.add(cursor.getLong(cursor.getColumnIndexOrThrow(COL_ENTRY_IDSEQ)))
+        // 查询所有需要的列
+        val cursor = db.query(TABLE_ENTRIES, null, selection, selectionArgs, null, null, "$COL_IS_COMMON DESC", "50")
+
+        cursor.use {
+            while (it.moveToNext()) {
+                entries.add(buildEntryFromCursor(it))
             }
         }
-        return ids
+        return entries
     }
 
-    private fun getFormsAndPriorityForEntry(db: SQLiteDatabase, idseq: Long): Triple<List<String>, List<String>, Int> {
-        val kanjiForms = mutableListOf<String>()
-        val readingForms = mutableListOf<String>()
-        var maxPriority = 0
+    fun getEntriesByIds(ids: List<Long>): List<DictionaryEntry> {
+        if (ids.isEmpty()) return emptyList()
 
-        val sql = "SELECT $COL_TEXT, $COL_TYPE, $COL_PRIORITIES FROM $TABLE_FORMS WHERE $COL_ENTRY_IDSEQ = ?"
-        db.rawQuery(sql, arrayOf(idseq.toString())).use { cursor ->
-            while (cursor.moveToNext()) {
-                val text = cursor.getString(cursor.getColumnIndexOrThrow(COL_TEXT))
-                when (cursor.getString(cursor.getColumnIndexOrThrow(COL_TYPE))) {
-                    "kanji" -> kanjiForms.add(text)
-                    "reading" -> readingForms.add(text)
-                }
+        val db: SQLiteDatabase = readableDatabase
+        val entries = mutableListOf<DictionaryEntry>()
 
-                val prioritiesStr = cursor.getString(cursor.getColumnIndexOrThrow(COL_PRIORITIES))
-                if (!prioritiesStr.isNullOrEmpty()) {
-                    val priorities = prioritiesStr.split(',')
-                    for (p in priorities) {
-                        val currentScore = priorityMap[p] ?: 0
-                        if (currentScore > maxPriority) {
-                            maxPriority = currentScore
-                        }
-                    }
-                }
+        val placeholders = ids.joinToString(",") { "?" }
+        val selection = "$COL_ID IN ($placeholders)"
+        val selectionArgs = ids.map { it.toString() }.toTypedArray()
+
+        val cursor = db.query(TABLE_ENTRIES, null, selection, selectionArgs, null, null, null)
+
+        cursor.use {
+            while (it.moveToNext()) {
+                entries.add(buildEntryFromCursor(it))
             }
         }
-        return Triple(kanjiForms, readingForms, maxPriority)
+
+        return entries.sortedBy { ids.indexOf(it.idseq) }
     }
 
-    private fun getSensesForEntry(db: SQLiteDatabase, idseq: Long): List<Sense> {
-        val senses = mutableListOf<Sense>()
-        val sql = "SELECT $COL_SENSE_PK, $COL_POS, $COL_GLOSS, $COL_INFO FROM $TABLE_SENSES WHERE $COL_ENTRY_IDSEQ = ?"
-        db.rawQuery(sql, arrayOf(idseq.toString())).use { cursor ->
-            while (cursor.moveToNext()) {
-                val senseId = cursor.getLong(cursor.getColumnIndexOrThrow(COL_SENSE_PK))
-                senses.add(
-                    Sense(
-                        partOfSpeech = cursor.getString(cursor.getColumnIndexOrThrow(COL_POS)),
-                        gloss = cursor.getString(cursor.getColumnIndexOrThrow(COL_GLOSS)),
-                        info = cursor.getString(cursor.getColumnIndexOrThrow(COL_INFO)),
-                        examples = getExamplesForSense(db, senseId)
-                    )
-                )
-            }
-        }
-        return senses
-    }
+    /**
+     * 新的核心辅助函数，从数据库游标构建一个完整的 DictionaryEntry 对象
+     */
+    private fun buildEntryFromCursor(cursor: Cursor): DictionaryEntry {
+        // 从游标中获取原始数据
+        val id = cursor.getLong(cursor.getColumnIndexOrThrow(COL_ID))
+        val isCommon = cursor.getInt(cursor.getColumnIndexOrThrow(COL_IS_COMMON))
+        val allKanjiFormsJson = cursor.getString(cursor.getColumnIndexOrThrow(COL_ALL_KANJI_FORMS))
+        val allKanaFormsJson = cursor.getString(cursor.getColumnIndexOrThrow(COL_ALL_KANA_FORMS))
+        val allSensesJson = cursor.getString(cursor.getColumnIndexOrThrow(COL_ALL_SENSES))
 
-    private fun getExamplesForSense(db: SQLiteDatabase, senseId: Long): List<Example> {
-        val examples = mutableListOf<Example>()
-        val sql = "SELECT $COL_JPN_SENTENCE, $COL_ENG_SENTENCE FROM $TABLE_EXAMPLES WHERE $COL_SENSE_ID = ?"
-        db.rawQuery(sql, arrayOf(senseId.toString())).use { cursor ->
-            while (cursor.moveToNext()) {
-                examples.add(
-                    Example(
-                        japanese = cursor.getString(cursor.getColumnIndexOrThrow(COL_JPN_SENTENCE)),
-                        english = cursor.getString(cursor.getColumnIndexOrThrow(COL_ENG_SENTENCE))
-                    )
-                )
-            }
-        }
-        return examples
+        // 调用我们的映射函数来完成复杂的转换工作
+        return mapRowToDictionaryEntry(
+            id, isCommon, allKanjiFormsJson, allKanaFormsJson, allSensesJson
+        )
     }
 
     enum class SearchType {

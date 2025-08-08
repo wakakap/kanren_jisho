@@ -53,6 +53,7 @@ dependencies {
 
     implementation(libs.sqliteassethelper)
     implementation(libs.opencc4j)
+    implementation(libs.gson)
     implementation(libs.bundles.wanakana)
     implementation(libs.bundles.coroutines)
 
