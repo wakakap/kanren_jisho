@@ -1,7 +1,7 @@
 # 文件路径: gradle/libs.versions.toml
 
 [versions]
-agp = "8.12.0"
+agp = "8.11.1"
 kotlin = "2.0.21"
 coreKtx = "1.16.0"
 junit = "4.13.2"
