@@ -58,8 +58,8 @@
 本项目采用 **MVVM 架构** 与 **Jetpack Compose** 声明式 UI，结合本地 SQLite 数据库，实现了毫秒级的离线日语查词体验。
 
 ## 📚 数据来源与开源组件
-* **数据驱动**: 基于 [JMdict-simplified](https://github.com/scriptin/jmdict-simplified) 项目编译而成的本地 SQLite 数据库 (`JMdict_new.db`)。
-  - 利用 `conversion script\json_convert_to_db.py` 把下载的 `jmdict-examples-eng-3.6.1.json` 转换为 `JMdict_new.db`。
+* **数据驱动**: 基于 [JMdict-simplified](https://github.com/scriptin/jmdict-simplified) 项目编译而成的本地 SQLite 数据库 (`JMdict_new.db`)。注意，因为体积大于100M，没有同步到此库。
+  - 利用 `conversion script\json_convert_to_db.py` 把下载的 `jmdict-examples-eng-3.6.1.json` 转换为 `JMdict_new.db`，放到app/src/main/assets/databases/中。
 * **语言处理组件**:
   * [WanaKana (Java)](https://github.com/esnaultdev/wanakana-java) - 罗马音/假名互转。
   * [OpenCC4j](https://github.com/houbb/opencc4j) - 简繁体与日文汉字转换。

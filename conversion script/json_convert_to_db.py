@@ -5,7 +5,7 @@ from tqdm import tqdm
 
 # --- 配置 ---
 # 请确保这个文件名与你下载的文件名完全一致
-JSON_FILE_PATH = 'jmdict-examples-eng-3.6.1.json'
+JSON_FILE_PATH = 'jmdict-examples-eng-3.6.2.json'
 DB_FILE_PATH = 'JMdict_new.db' # 这是将要生成的新数据库文件名
 TABLE_NAME = 'entries'
 
